@@ -628,14 +628,9 @@ func (container *Container) NetworkDHCPConfigs() []config.NetworkDHCPConfig {
 	return findMatchingDocs[config.NetworkDHCPConfig](container.documents)
 }
 
-// NetworkBGPPeerConfig implements config.Config interface.
-func (container *Container) NetworkBGPPeerConfig() config.NetworkBGPPeerConfig {
-	matching := findMatchingDocs[config.NetworkBGPPeerConfig](container.documents)
-	if len(matching) == 0 {
-		return nil
-	}
-
-	return matching[0]
+// NetworkBGPInstanceConfigs implements config.Config interface.
+func (container *Container) NetworkBGPInstanceConfigs() []config.NetworkBGPInstanceConfig {
+	return findMatchingDocs[config.NetworkBGPInstanceConfig](container.documents)
 }
 
 // NetworkDHCPv4Configs implements config.Config interface.
@@ -978,6 +973,20 @@ func (container *Container) K8sKubePrismConfig() config.K8sKubePrismConfig {
 
 	if container.v1alpha1Config != nil {
 		return container.v1alpha1Config.K8sKubePrismConfig()
+	}
+
+	return nil
+}
+
+// K8sTalosAPIAccessConfig implements config.Config interface.
+func (container *Container) K8sTalosAPIAccessConfig() config.K8sTalosAPIAccessConfig {
+	matching := findMatchingDocs[config.K8sTalosAPIAccessConfig](container.documents)
+	if len(matching) > 0 {
+		return matching[0]
+	}
+
+	if container.v1alpha1Config != nil {
+		return container.v1alpha1Config.K8sTalosAPIAccessConfig()
 	}
 
 	return nil

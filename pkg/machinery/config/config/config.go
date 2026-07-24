@@ -34,7 +34,7 @@ type Config interface { //nolint:interfacebloat
 	NetworkProbeConfigs() []NetworkCommonProbeConfig
 	NetworkBlackholeRouteConfigs() []NetworkBlackholeRouteConfig
 	NetworkRoutingRuleConfigs() []NetworkRoutingRuleConfig
-	NetworkBGPPeerConfig() NetworkBGPPeerConfig
+	NetworkBGPInstanceConfigs() []NetworkBGPInstanceConfig
 
 	// - cluster
 	DiscoveryServiceConfigs() []DiscoveryServiceConfig
@@ -64,6 +64,7 @@ type Config interface { //nolint:interfacebloat
 	K8sInlineManifestConfigs() []K8sInlineManifestConfig
 	K8sExternalManifestConfigs() []K8sExternalManifestConfig
 	K8sKubePrismConfig() K8sKubePrismConfig
+	K8sTalosAPIAccessConfig() K8sTalosAPIAccessConfig
 
 	// - block devices/storage:
 	Volumes() VolumesConfig
