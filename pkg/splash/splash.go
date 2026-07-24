@@ -9,10 +9,10 @@ import (
 	_ "embed"
 )
 
-//go:embed sidero.bmp
-var sideroBMP []byte
+//go:embed nirvati.bmp
+var nirvatiBMP []byte
 
 // GetBootImage returns boot splash image.
 func GetBootImage() []byte {
-	return sideroBMP
+	return nirvatiBMP
 }
