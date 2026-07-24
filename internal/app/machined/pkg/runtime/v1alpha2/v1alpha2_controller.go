@@ -515,6 +515,12 @@ func (ctrl *Controller) Run(ctx context.Context, drainer *runtime.Drainer) error
 		&runtimecontrollers.MaintenanceServiceInformController{
 			V1Alpha1Mode: ctrl.v1alpha1Runtime.State().Platform().Mode(),
 		},
+		&runtimecontrollers.MaintenanceWebController{
+			V1Alpha1Runtime: ctrl.v1alpha1Runtime,
+		},
+		&runtimecontrollers.AutoBootstrapController{
+			V1Alpha1Runtime: ctrl.v1alpha1Runtime,
+		},
 		&runtimecontrollers.MachineStatusController{
 			V1Alpha1Events: ctrl.v1alpha1Runtime.Events(),
 		},

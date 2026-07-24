@@ -1,0 +1,36 @@
+{
+  "welcome.title": "Welcome to Nirvati",
+  "welcome.subtitle": "Let's get this server set up.",
+  "welcome.new.title": "Set up a new Nirvati instance",
+  "welcome.join.title": "I want to extend an existing setup (experimental)",
+  "back": "Back",
+
+  "new.title": "Set up your Nirvati server",
+  "new.subtitle": "Just confirm the disk below and you're ready to go.",
+  "new.clusterName.label": "Name for this server",
+  "new.clusterName.placeholder": "nirvati",
+  "new.disk.label": "Install to",
+  "new.disk.loading": "Looking for disks…",
+  "new.disk.empty": "No disks found yet. Waiting for hardware to be detected…",
+  "new.disk.warning": "⚠️ Everything currently on this disk will be erased.",
+  "new.disk.info": "For multi-disk setups: choose an empty disk to use as the \"main disk\". Other disks can be added later.",
+  "advanced.toggle": "Advanced (optional)",
+  "new.endpoint.label": "Network address",
+  "new.endpoint.help": "Detected automatically. Only change this if you know you need to.",
+  "new.endpoint.missing": "We couldn't detect this server's network address automatically. Please open \"Advanced\" above and enter it yourself.",
+  "new.submit": "Set up my server",
+  "new.submitting": "Setting up…",
+
+  "join.title": "Join an existing setup",
+  "join.description": "Paste the configuration file from the servers overview of your existing setup below, or upload it.",
+  "join.upload": "Upload file instead…",
+  "join.textarea.placeholder": "Paste the configuration file here",
+  "join.submit": "Join",
+  "join.submitting": "Joining…",
+
+  "done.title": "You're all set!",
+  "done.body": "Your server is finishing setup and will restart on its own. This can take a few minutes.",
+
+  "error.generic": "Something went wrong. If this keeps happening, ask for help and share the message below.",
+  "error.required": "Please choose a disk first"
+}

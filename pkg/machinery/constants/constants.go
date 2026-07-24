@@ -554,6 +554,9 @@ const (
 	// TrustdUserID is the user ID for trustd.
 	TrustdUserID = 51
 
+	// MaintenanceWebPort is the port for the maintenance status web page, served while the machine is uninitialized.
+	MaintenanceWebPort = 80
+
 	// DefaultContainerdVersion is the default container runtime version.
 	DefaultContainerdVersion = "2.3.3"
 

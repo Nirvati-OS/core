@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- app.js polls "/" after setup and reloads once this marker is gone, i.e. once
+         something other than the Init UI is answering on this address. -->
+    <meta name="nirvati-app" content="init" />
+    <title>Nirvati Init</title>
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <select id="language-select" aria-label="Language"></select>
+
+    <main>
+      <section id="welcome" data-screen="welcome" class="screen">
+        <img
+          class="logo"
+          src="/nirvati-logo-text.svg"
+          alt=""
+          onerror="this.style.display = 'none'"
+        />
+        <h1 data-i18n="welcome.title">Welcome to Nirvati</h1>
+        <p class="subtitle" data-i18n="welcome.subtitle">
+          Let's get this server set up.
+        </p>
+
+        <button type="button" class="primary-button" id="choose-new">
+          <img src="/rocket.svg" alt="" aria-hidden="true" />
+          <span data-i18n="welcome.new.title">Set up this server</span>
+        </button>
+
+        <button type="button" class="link-button" id="choose-join">
+          <span data-i18n="welcome.join.title"
+            >I want to extend an existing setup (experimental)</span
+          >
+        </button>
+      </section>
+
+      <section id="new" data-screen="new" class="screen" hidden>
+        <h1 data-i18n="new.title">Set up your Nirvati server</h1>
+        <p class="subtitle" data-i18n="new.subtitle">
+          Just confirm the disk below and you're ready to go.
+        </p>
+
+        <form id="new-form">
+          <div class="field">
+            <label for="new-disk" data-i18n="new.disk.label">Install to</label>
+            <select id="new-disk"></select>
+          </div>
+
+          <p class="warning" data-i18n="new.disk.warning">
+            ⚠️ Everything currently on this disk will be erased.
+          </p>
+
+          <p class="info" data-i18n="new.disk.info">
+            For multi-disk setups: choose an empty disk to use as the "main
+            disk". Other disks can be added later.
+          </p>
+
+          <details class="advanced">
+            <summary data-i18n="advanced.toggle">Advanced (optional)</summary>
+
+            <div class="field">
+              <label for="new-cluster-name" data-i18n="new.clusterName.label"
+                >Name for this server</label
+              >
+              <input
+                type="text"
+                id="new-cluster-name"
+                data-i18n="new.clusterName.placeholder"
+                data-i18n-attr="placeholder"
+                placeholder="nirvati"
+                value="nirvati"
+              />
+            </div>
+
+            <div class="field">
+              <label for="new-endpoint" data-i18n="new.endpoint.label"
+                >Network address</label
+              >
+              <input type="text" id="new-endpoint" />
+              <p class="help" data-i18n="new.endpoint.help">
+                Detected automatically. Only change this if you know you need
+                to.
+              </p>
+            </div>
+          </details>
+
+          <p class="error" id="new-error" hidden></p>
+
+          <button type="submit" id="new-submit" class="primary-button" disabled>
+            <img src="/rocket.svg" alt="" aria-hidden="true" />
+            <span data-i18n="new.submit">Set up my server</span>
+          </button>
+
+          <button type="button" class="link-button" data-back data-i18n="back">
+            Back
+          </button>
+        </form>
+      </section>
+
+      <section id="join" data-screen="join" class="screen" hidden>
+        <h1 data-i18n="join.title">Join an existing setup</h1>
+        <p class="subtitle" data-i18n="join.description">
+          Paste the configuration file from the servers overview of your
+          existing setup below, or upload it.
+        </p>
+
+        <form id="join-form">
+          <div class="field">
+            <textarea
+              id="join-yaml"
+              data-i18n="join.textarea.placeholder"
+              data-i18n-attr="placeholder"
+            ></textarea>
+          </div>
+
+          <label class="link-button" for="join-file" data-i18n="join.upload"
+            >Upload file instead…</label
+          >
+          <input type="file" id="join-file" accept=".yaml,.yml" hidden />
+
+          <p class="error" id="join-error" hidden></p>
+
+          <button
+            type="submit"
+            id="join-submit"
+            class="primary-button"
+            data-i18n="join.submit"
+          >
+            Join
+          </button>
+          <button type="button" class="link-button" data-back data-i18n="back">
+            Back
+          </button>
+        </form>
+      </section>
+
+      <section id="done" data-screen="done" class="screen" hidden>
+        <div class="spinner" aria-hidden="true"></div>
+        <h1 data-i18n="done.title">You're all set!</h1>
+        <p class="subtitle" data-i18n="done.body">
+          Your server is finishing setup and will restart on its own. This can
+          take a few minutes.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

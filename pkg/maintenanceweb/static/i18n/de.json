@@ -1,0 +1,36 @@
+{
+  "welcome.title": "Willkommen bei Nirvati",
+  "welcome.subtitle": "Lass uns deinen Server einrichten.",
+  "welcome.new.title": "Neue Nirvati-Instanz einrichten",
+  "welcome.join.title": "Ich möchte eine bestehende Installation erweitern (experimentell)",
+  "back": "Zurück",
+
+  "new.title": "Richte deinen Nirvati-Server ein",
+  "new.subtitle": "Bestätige einfach die Festplatte unten – dann bist du fertig.",
+  "new.clusterName.label": "Name für diesen Server",
+  "new.clusterName.placeholder": "nirvati",
+  "new.disk.label": "Installieren auf",
+  "new.disk.loading": "Festplatten werden gesucht…",
+  "new.disk.empty": "Noch keine Festplatten gefunden. Warte auf Hardwareerkennung…",
+  "new.disk.warning": "⚠️ Alles, was sich aktuell auf dieser Festplatte befindet, wird gelöscht.",
+  "new.disk.info": "Für Multi-Disk-Setups: Wähle eine leere Festplatte aus, die du als \"Hauptfestplatte\" verwenden möchtest. Andere Festplatten können später hinzugefügt werden.",
+  "advanced.toggle": "Erweitert (optional)",
+  "new.endpoint.label": "Netzwerkadresse",
+  "new.endpoint.help": "Wird automatisch erkannt. Nur ändern, wenn du weißt, dass es nötig ist.",
+  "new.endpoint.missing": "Wir konnten die Netzwerkadresse dieses Servers nicht automatisch erkennen. Bitte öffne oben \"Erweitert\" und gib sie selbst ein.",
+  "new.submit": "Meinen Server einrichten",
+  "new.submitting": "Wird eingerichtet…",
+
+  "join.title": "Einem bestehenden Setup beitreten",
+  "join.description": "Füge die Konfigurations-Datei vom Server-Menü von deiner bestehenden Installation unten ein oder lade sie hoch.",
+  "join.upload": "Stattdessen Datei hochladen…",
+  "join.textarea.placeholder": "Konfigurationsdatei hier einfügen",
+  "join.submit": "Beitreten",
+  "join.submitting": "Wird beigetreten…",
+
+  "done.title": "Fertig!",
+  "done.body": "Dein Server schließt die Einrichtung ab und startet danach von selbst neu. Das kann ein paar Minuten dauern.",
+
+  "error.generic": "Etwas ist schiefgelaufen. Wenn das öfter passiert, hol dir Hilfe und teile die Meldung unten mit.",
+  "error.required": "Bitte wähle zuerst eine Festplatte aus"
+}
