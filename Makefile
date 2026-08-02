@@ -1,6 +1,6 @@
-REGISTRY ?= ghcr.io
+REGISTRY ?= registry.nirvati.de
 FACTORY ?= factory.talos.dev
-USERNAME ?= siderolabs
+USERNAME ?= nirvati-os
 SHA ?= $(shell git describe --match=none --always --abbrev=8 --dirty)
 TAG ?= $(shell git describe --tag --always --dirty --match v[0-9]\*)
 ABBREV_TAG ?= $(shell git describe --tag --always --match v[0-9]\* --abbrev=0 )
@@ -12,6 +12,7 @@ IMAGE_REGISTRY ?= $(REGISTRY)
 IMAGE_TAG_IN ?= $(TAG)$(TAG_SUFFIX_IN)
 IMAGE_TAG_OUT ?= $(TAG)$(TAG_SUFFIX_OUT)
 IMAGE_NAME_SUFFIX ?=
+ARCHS ?= amd64 arm64
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 REGISTRY_AND_USERNAME := $(IMAGE_REGISTRY)/$(USERNAME)
 NAME = Talos
@@ -25,14 +26,14 @@ ARTIFACTS := _out
 
 EMBED_TARGET ?= embed
 
-TOOLS_PREFIX ?= ghcr.io/siderolabs/tools
-TOOLS ?= v1.14.0-alpha.0-26-g08071b1
-PKGS_PREFIX ?= ghcr.io/siderolabs
-PKGS ?= v1.14.0-alpha.0-113-gf78e3dc
+TOOLS_PREFIX ?= ghcr.io/nirvati-os/tools
+TOOLS ?= v1.14.0-alpha.0-29-ga5601f2
+PKGS_PREFIX ?= ghcr.io/nirvati-os
+PKGS ?= v1.14.0-alpha.0-117-g9326f2f
 GENERATE_VEX_PREFIX ?= ghcr.io/siderolabs/generate-vex
 GENERATE_VEX ?= latest
 
-KRES_IMAGE ?= ghcr.io/siderolabs/kres:latest
+KRES_IMAGE ?= ghcr.io/nirvati-os/kres:latest
 CONFORMANCE_IMAGE ?= ghcr.io/siderolabs/conform:latest
 IMAGE_SIGNER_RELEASE ?= v0.3.2
 
@@ -737,6 +738,17 @@ push: ## Pushes the installer-base, imager, talos and talosctl images to the con
 
 push-%: ## Pushes the installer-base, imager, talos and talosctl images to the configured container registry with the specified tag (e.g. push-latest).
 	@$(MAKE) push IMAGE_TAG_OUT=$*
+
+.PHONY: push-manifests
+push-manifests: ## Combines the per-arch images built by the native-arch CI matrix (name suffixed -amd64/-arm64) into final multi-arch manifests.
+	@for name in installer-base imager talos talosctl talosctl-all; do \
+		images=""; \
+		for arch in $(ARCHS); do images="$$images $(REGISTRY_AND_USERNAME)/$$name-$$arch:$(IMAGE_TAG_OUT)"; done; \
+		docker buildx imagetools create --tag $(REGISTRY_AND_USERNAME)/$$name:$(IMAGE_TAG_OUT) $$images; \
+	done
+
+push-manifests-%: ## Combines the per-arch images with the specified tag (e.g. push-manifests-latest).
+	@$(MAKE) push-manifests IMAGE_TAG_OUT=$*
 
 .PHONY: clean
 clean: ## Cleans up all artifacts.

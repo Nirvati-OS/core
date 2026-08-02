@@ -18,8 +18,13 @@ spec:
           5D7964FF2DB426ACB3C3505AA2A702DD5B689F45,
           E77ED9F8451E10BD242D07415444881046F92733
 ---
+kind: common.ReKres
+spec:
+  kresImage: ghcr.io/nirvati-os/kres:latest
+---
 kind: common.Repository
 spec:
+  skipSlackNotify: true
   conformScopes:
     - apid
     - machined
@@ -115,7 +120,7 @@ spec:
     - name: default
       buildxOptions:
         enabled: true
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       conditions:
         - on-pull-request
       steps:
@@ -127,11 +132,16 @@ spec:
           environment:
             PLATFORM: linux/amd64
         - name: check-dirty
+        - name: login-to-dev-registry
+          registryLoginStep:
+            registry: dev-registry.nirvati.de
+            username: ${{ secrets.NIRVATI_DEV_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_DEV_REGISTRY_PASSWORD }}
         - name: build
           command: talosctl kernel sd-boot sd-stub initramfs installer-base imager talos integration-test
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             PUSH: true
         - name: talosctl-cni-bundle
         - name: sbom
@@ -139,12 +149,12 @@ spec:
           command: iso secureboot-iso
           environment:
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: images-essential
           environment:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-artifacts
           artifactStep:
             type: upload
@@ -153,7 +163,7 @@ spec:
     - name: push
       buildxOptions:
         enabled: true
-      runnerGroup: large
+      archMatrix: true
       conditions:
         - except-pull-request
         - not-on-tag
@@ -161,42 +171,98 @@ spec:
         - name: build
           command: talosctl-all kernel sd-boot sd-stub initramfs installer-base imager talos
           environment:
-            PLATFORM: linux/amd64,linux/arm64
+            PLATFORM: linux/${{ matrix.arch }}
+            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
         - name: release-notes
         - name: login-to-registry
           registryLoginStep:
-            registry: ghcr.io
+            registry: registry.nirvati.de
+            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
         - name: push
           environment:
-            PLATFORM: linux/amd64,linux/arm64
+            PLATFORM: linux/${{ matrix.arch }}
+            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
         - name: push-latest
           environment:
-            PLATFORM: linux/amd64,linux/arm64
+            PLATFORM: linux/${{ matrix.arch }}
+            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
+          conditions:
+            - only-on-main-branch
+    - name: merge-manifests-push
+      runnerGroup: generic # just merges already-pushed manifests, no build
+      depends:
+        - push
+      conditions:
+        - except-pull-request
+        - not-on-tag
+      steps:
+        - name: login-to-registry
+          registryLoginStep:
+            registry: registry.nirvati.de
+            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
+        - name: push-manifests
+        - name: push-manifests-latest
           conditions:
             - only-on-main-branch
     - name: tag
-      sops: true
       buildxOptions:
         enabled: true
-      runnerGroup: large
+      archMatrix: true
       conditions:
         - only-on-tag
       steps:
         - name: build
           command: talosctl-all kernel sd-boot sd-stub initramfs installer-base imager talos talosctl-cni-bundle
           environment:
-            PLATFORM: linux/amd64,linux/arm64
+            PLATFORM: linux/${{ matrix.arch }}
+            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
         - name: release-notes
         - name: sbom
         - name: login-to-registry
           registryLoginStep:
-            registry: ghcr.io
+            registry: registry.nirvati.de
+            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
         - name: push
           environment:
-            PLATFORM: linux/amd64,linux/arm64
+            PLATFORM: linux/${{ matrix.arch }}
+            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
         - name: images
           environment:
-            PLATFORM: linux/amd64,linux/arm64
+            PLATFORM: linux/${{ matrix.arch }}
+            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
+        - name: save-release-artifacts
+          artifactStep:
+            type: upload
+            artifactName: talos-release-${{ matrix.arch }}
+            artifactPath: _out
+    - name: merge-manifests-tag
+      runnerGroup: generic # just merges already-pushed manifests, no build
+      depends:
+        - tag
+      conditions:
+        - only-on-tag
+      steps:
+        - name: login-to-registry
+          registryLoginStep:
+            registry: registry.nirvati.de
+            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
+        - name: push-manifests
+    - name: release
+      runnerGroup: generic # only collects artifacts uploaded by the tag matrix and creates the release
+      depends:
+        - tag
+      conditions:
+        - only-on-tag
+      steps:
+        - name: download-release-artifacts
+          artifactStep:
+            type: download
+            pattern: talos-release-*
+            artifactPath: _out
         - name: release
           releaseStep:
             baseDirectory: _out
@@ -257,7 +323,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       steps:
         - name: download-artifacts
           artifactStep:
@@ -278,7 +344,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       steps:
         - name: download-artifacts
           artifactStep:
@@ -301,13 +367,15 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       crons:
         - "30 7 * * *"
       steps:
         - name: login-to-registry
           registryLoginStep:
-            registry: ghcr.io
+            registry: registry.nirvati.de
+            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
         - name: local-grype-scan-result
           environment:
             DEST: _out
@@ -324,7 +392,7 @@ spec:
     - name: e2e-iso
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       steps:
         - name: download-artifacts
           artifactStep:
@@ -335,7 +403,7 @@ spec:
         - name: e2e-iso
           withSudo: true
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -349,7 +417,7 @@ spec:
     - name: e2e-qemu-short
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       steps:
         - name: download-artifacts
           artifactStep:
@@ -361,7 +429,7 @@ spec:
           withSudo: true
           environment:
             GITHUB_STEP_NAME: ${{ github.job}}-e2e-qemu-short
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             WITH_CONFIG_PATCH: "@hack/test/patches/image-verification.yaml"
             SHORT_INTEGRATION_TEST: yes
         - name: save-talos-logs
@@ -377,7 +445,7 @@ spec:
     - name: e2e-docker-short
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       steps:
         - name: download-artifacts
           artifactStep:
@@ -388,7 +456,7 @@ spec:
         - name: e2e-docker
           withSudo: false
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             SHORT_INTEGRATION_TEST: yes
         - name: save-talos-logs
           conditions:
@@ -403,7 +471,7 @@ spec:
     - name: artifacts
       buildxOptions:
         enabled: true
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       crons:
         - "30 3 * * *"
       cronOnly: true
@@ -413,11 +481,16 @@ spec:
         - name: uki-certs
           environment:
             PLATFORM: linux/amd64
+        - name: login-to-dev-registry
+          registryLoginStep:
+            registry: dev-registry.nirvati.de
+            username: ${{ secrets.NIRVATI_DEV_REGISTRY_USERNAME }}
+            password: ${{ secrets.NIRVATI_DEV_REGISTRY_PASSWORD }}
         - name: build
           command: talosctl kernel sd-boot sd-stub initramfs installer-base imager talos integration-test
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             PUSH: true
         - name: talosctl-cni-bundle
         - name: iso
@@ -425,12 +498,12 @@ spec:
           environment:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: images-essential
           environment:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-artifacts
           artifactStep:
             type: upload
@@ -443,7 +516,7 @@ spec:
       depends:
         - default
         - integration-build-enforcing
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [integration-build-enforcing-triggered]
         types: [completed]
@@ -518,11 +591,11 @@ spec:
             TAG_SUFFIX: ${{ matrix.tagSuffix }}
             WITH_RACE: "1"
             PLATFORM: linux/amd64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: e2e-qemu
           withSudo: true
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             TAG_SUFFIX_IN: ${{ matrix.tagSuffixIn }}
             TAG_SUFFIX: ${{ matrix.tagSuffix }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
@@ -557,7 +630,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -574,7 +647,7 @@ spec:
         - name: e2e-embedded
           withSudo: true
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -591,7 +664,7 @@ spec:
       depends:
         - default
         - integration-build-enforcing
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       triggerLabels:
         - integration/conformance
         - integration/release-gate
@@ -628,7 +701,7 @@ spec:
             TAG_SUFFIX_IN: ${{ matrix.tagSuffixIn }}
             WITH_ENFORCING: ${{ matrix.withEnforcing }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -645,7 +718,7 @@ spec:
       depends:
         - default
         - integration-build-enforcing
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [integration-build-enforcing-triggered]
         types: [completed]
@@ -683,14 +756,14 @@ spec:
           environment:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0 --extra-kernel-arg=enforcing=1"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: image-secureboot-metal
           conditions:
             - matrix.withTrustedBootDiskImage
           environment:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: integration-trusted-boot
           command: e2e-qemu
           withSudo: true
@@ -703,7 +776,7 @@ spec:
             TAG_SUFFIX_IN: ${{ matrix.tagSuffixIn }}
             WITH_ENFORCING: ${{ matrix.withEnforcing }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -719,7 +792,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -752,7 +825,7 @@ spec:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0 --extra-kernel-arg=enforcing=1"
             TAG_SUFFIX_OUT: -enforcing
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             PUSH: true
         - name: installer-extra-cmdline
           command: installer
@@ -760,20 +833,20 @@ spec:
             - matrix.buildExtraCmdline
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             IMAGER_ARGS: "--extra-kernel-arg=talos.extra_cmdline=extra-super-cmdline"
             TAG_SUFFIX_OUT: -extra-cmdline
         - name: secureboot-stable-artifacts
           conditions:
             - matrix.buildTrustedBootStableArtifacts
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: provision-tests-prepare
         - name: provision-tests-track
           command: provision-tests-track-${{ matrix.track }}
           withSudo: true
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             GRPC_ENFORCE_ALPN_ENABLED: "false"
         - name: save-talos-logs
           conditions:
@@ -790,7 +863,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -825,7 +898,7 @@ spec:
         - name: integration-images-list
           command: integration-images-list
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: ${{ matrix.test }}
           command: e2e-qemu
           withSudo: true
@@ -835,7 +908,7 @@ spec:
             WITH_AIRGAPPED: ${{ matrix.withAirgapped }}
             WITH_CLUSTER_DISCOVERY: ${{ matrix.withClusterDiscovery }}
             WITH_CONFIG_PATCH: ${{ matrix.withConfigPatch }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -852,7 +925,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -887,7 +960,7 @@ spec:
             PLATFORM: linux/amd64,linux/arm64
             IMAGER_ARGS: "--extra-kernel-arg=console=ttyS0 --extra-kernel-arg=enforcing=1"
             TAG_SUFFIX_OUT: -enforcing
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             PUSH: true
         - name: save-enforcing-artifacts
           artifactStep:
@@ -900,7 +973,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -982,7 +1055,7 @@ spec:
             QEMU_MEMORY_WORKERS: ${{ matrix.qemuMemoryWorkers }}
             QEMU_MEMORY_CONTROLPLANES: ${{ matrix.qemuMemoryControlplanes }}
             TEST_MODE: ${{ matrix.testMode }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1001,7 +1074,7 @@ spec:
         - integration-build-enforcing
       conditions:
         - not-cancelled
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [integration-build-enforcing-triggered]
         types: [completed]
@@ -1081,7 +1154,7 @@ spec:
             TAG_SUFFIX_IN: ${{ matrix.tagSuffixIn }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
             WITH_ENFORCING: ${{ matrix.withEnforcing }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1097,7 +1170,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1159,7 +1232,7 @@ spec:
             WITH_CONFIG_PATCH: ${{ matrix.withConfigPatch }}
             WITH_TPM1_2: ${{ matrix.withTpm12 }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1178,7 +1251,7 @@ spec:
         - integration-build-enforcing
       conditions:
         - not-cancelled
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [integration-build-enforcing-triggered]
         types: [completed]
@@ -1237,7 +1310,7 @@ spec:
             TAG_SUFFIX_IN: ${{ matrix.tagSuffixIn }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
             WITH_ENFORCING: ${{ matrix.withEnforcing }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1256,7 +1329,7 @@ spec:
         - integration-build-enforcing
       conditions:
         - not-cancelled
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [integration-build-enforcing-triggered]
         types: [completed]
@@ -1349,7 +1422,7 @@ spec:
             WITH_BAD_RTC: ${{ matrix.withBadRtc }}
             EXTRA_TEST_ARGS: ${{ matrix.extraTestArgs }}
             WITH_ENFORCING: ${{ matrix.withEnforcing }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1365,7 +1438,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1398,11 +1471,11 @@ spec:
           environment:
             PLATFORM: linux/amd64
             PUSH: true
-            REGISTRY: registry.dev.siderolabs.io
+            REGISTRY: dev-registry.nirvati.de
         - name: installer extensions
           command: installer-with-extensions
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: e2e-extensions
           command: e2e-qemu
           withSudo: true
@@ -1414,7 +1487,7 @@ spec:
             QEMU_EXTRA_DISKS: 3
             SHORT_INTEGRATION_TEST: yes
             EXTRA_TEST_ARGS: -talos.extensions.qemu
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1430,7 +1503,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1471,7 +1544,7 @@ spec:
             CILIUM_INSTALL_TYPE: ${{ matrix.ciliumInstallType }}
             WITH_KUBESPAN: ${{ matrix.withKubespan }}
             WITH_CONFIG_PATCH_CONTROLPLANE: ${{ matrix.ciliumConfigPatch }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-talos-logs
           conditions:
             - always
@@ -1487,7 +1560,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1527,7 +1600,7 @@ spec:
             WITH_CONFIG_PATCH_CONTROLPLANE: ${{ matrix.withConfigPatchControlplane }}
             WITH_CONFIG_PATCH_WORKER: ${{ matrix.withConfigPatchWorker }}
             EXTRA_TEST_ARGS: -talos.csi=${{ matrix.csi }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-fio-benchmark
           artifactStep:
             type: upload
@@ -1550,7 +1623,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1600,12 +1673,12 @@ spec:
           environment:
             PLATFORM: linux/amd64
             PUSH: true
-            REGISTRY: registry.dev.siderolabs.io
+            REGISTRY: dev-registry.nirvati.de
         - name: installer extensions
           command: installer-with-extensions
           environment:
             EXTENSIONS_FILTER_COMMAND: "grep -E '/iscsi-tools|util-linux-tools'"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: kubelet-fat-patch
         - name: e2e-qemu-csi-longhorn
           command: e2e-qemu
@@ -1623,7 +1696,7 @@ spec:
             WITH_CONFIG_PATCH_CONTROLPLANE: "@hack/test/patches/longhorn-cp.yaml"
             WITH_CONFIG_PATCH_WORKER: "@_out/installer-extensions-patch.yaml:@hack/test/patches/longhorn.yaml${{ matrix.extraWorkerPatch }}"
             EXTRA_TEST_ARGS: -talos.csi=${{ matrix.csi }} ${{ matrix.extraTestArgs }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-fio-benchmark
           artifactStep:
             type: upload
@@ -1647,7 +1720,7 @@ spec:
       sops: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1679,12 +1752,12 @@ spec:
           environment:
             PLATFORM: linux/amd64
             PUSH: true
-            REGISTRY: registry.dev.siderolabs.io
+            REGISTRY: dev-registry.nirvati.de
         - name: installer extensions
           command: installer-with-extensions
           environment:
             EXTENSIONS_FILTER_COMMAND: "grep -E '/iscsi-tools|multipath-tools|nfs-utils|trident-iscsi-tools|util-linux-tools'"
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: e2e-qemu-csi-netapp
           command: e2e-qemu
           withSudo: true
@@ -1702,7 +1775,7 @@ spec:
             TRIDENT_ONTAP_SVM: svm0
             TRIDENT_ONTAP_USERNAME: ${{ env.TRIDENT_ONTAP_USERNAME }}
             TRIDENT_ONTAP_PASSWORD: ${{ env.TRIDENT_ONTAP_PASSWORD }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-fio-benchmark
           artifactStep:
             type: upload
@@ -1742,13 +1815,13 @@ spec:
         - name: images
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
     - name: integration-reproducibility-test
       buildxOptions:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1764,7 +1837,7 @@ spec:
         - name: ci-temp-release-tag
         - name: reproducibility-test
           environment:
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
     - name: integration-cloud-images
       buildxOptions:
         enabled: true
@@ -1787,14 +1860,14 @@ spec:
         - name: images
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: cloud-images
     - name: integration-build-image-cache
       buildxOptions:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1812,7 +1885,7 @@ spec:
           command: cache-create
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             PUSH: true
         - name: save-image-cache-artifacts
           artifactStep:
@@ -1826,7 +1899,7 @@ spec:
       depends:
         - default
         - integration-build-image-cache
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [integration-build-image-cache-triggered]
         types: [completed]
@@ -1861,7 +1934,7 @@ spec:
           withSudo: true
           environment:
             GITHUB_STEP_NAME: ${{ github.job}}-${{ matrix.test }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             REGISTRY_MIRROR_FLAGS: no
             SHORT_INTEGRATION_TEST: yes
             USE_DISK_IMAGE: ${{ matrix.useDiskImage }}
@@ -1883,7 +1956,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -1983,7 +2056,7 @@ spec:
         enabled: true
       depends:
         - default
-      runnerGroup: large
+      runnerGroup: ubuntu-24.04
       onWorkflowRun:
         workflows: [artifacts-cron]
         types: [completed]
@@ -2017,7 +2090,7 @@ spec:
         - name: image-aws
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: save-aws-artifacts
           artifactStep:
             type: upload
@@ -2056,7 +2129,7 @@ spec:
         - name: e2e-aws-prepare
           environment:
             E2E_AWS_TARGET: default
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             TARGET_ARCH: ${{ matrix.targetArch }}
         - name: checkout contrib
           checkoutStep:
@@ -2233,12 +2306,12 @@ spec:
           environment:
             PLATFORM: ${{ matrix.buildPlatform }}
             PUSH: true
-            REGISTRY: registry.dev.siderolabs.io
+            REGISTRY: dev-registry.nirvati.de
         - name: e2e-aws-prepare
           environment:
             EXTENSIONS_METADATA_FILE: _out/extensions/_out/extensions-metadata
             E2E_AWS_TARGET: ${{ matrix.e2eTarget }}
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
             TARGET_ARCH: ${{ matrix.targetArch }}
         - name: checkout contrib
           checkoutStep:
@@ -2290,7 +2363,7 @@ spec:
         - name: image-gcp
           environment:
             PLATFORM: linux/amd64,linux/arm64
-            IMAGE_REGISTRY: registry.dev.siderolabs.io
+            IMAGE_REGISTRY: dev-registry.nirvati.de
         - name: e2e-gcp-prepare
         - name: checkout contrib
           checkoutStep:
