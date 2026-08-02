@@ -5,6 +5,8 @@
 package makers_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	sideronet "github.com/siderolabs/net"
@@ -64,6 +66,35 @@ func TestQemuMaker_RegistryAuth(t *testing.T) {
 	require.NoError(t, err)
 
 	assertConfigDefaultness(t, cOps, *m.Maker, nil, configpatcher.NewStrategicMergePatch(ctr))
+}
+
+func TestQemuMaker_BGPCLOSCustomCNIPatchWins(t *testing.T) {
+	cOps := clusterops.GetCommon()
+	qOps := clusterops.GetQemu()
+	qOps.WithBGPCLOS = true
+
+	patchPath := filepath.Join(t.TempDir(), "custom-cni.yaml")
+	require.NoError(t, os.WriteFile(patchPath, []byte(`apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+`), 0o600))
+
+	cOps.ConfigPatchControlPlane = []string{patchPath}
+
+	m, err := makers.NewQemu(makers.MakerOptions[clusterops.Qemu]{
+		ExtraOps:    qOps,
+		CommonOps:   cOps,
+		Provisioner: testProvisioner{},
+	})
+	require.NoError(t, err)
+
+	clusterConfigs, err := m.GetClusterConfigs()
+	require.NoError(t, err)
+
+	controlPlaneConfig, err := clusterConfigs.ClusterRequest.Nodes[0].Config.EncodeBytes()
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(controlPlaneConfig), "kind: KubeFlannelCNIConfig")
 }
 
 func TestQemuMaker_Disks(t *testing.T) {
@@ -127,6 +158,37 @@ func TestQemuMaker_Disks(t *testing.T) {
 			Serial:          "",
 		},
 	}, workerDisks)
+}
+
+func TestQemuMaker_ExtraDisksOnControlplanes(t *testing.T) {
+	cOps := clusterops.GetCommon()
+	qOps := clusterops.GetQemu()
+
+	disks := flags.Disks{}
+	err := disks.Set("virtio:10GiB,nvme:20GiB,virtio:30GiB")
+	require.NoError(t, err)
+
+	qOps.Disks = disks
+	qOps.ExtraDisksOnControlplanes = true
+	cOps.Controlplanes = 1
+	cOps.Workers = 1
+
+	m, err := makers.NewQemu(makers.MakerOptions[clusterops.Qemu]{
+		ExtraOps:    qOps,
+		CommonOps:   cOps,
+		Provisioner: testProvisioner{},
+	})
+	require.NoError(t, err)
+
+	req, err := m.GetClusterConfigs()
+	require.NoError(t, err)
+
+	controlplaneDisks := req.ClusterRequest.Nodes[0].Disks
+	workerDisks := req.ClusterRequest.Nodes[1].Disks
+
+	assert.Equal(t, 3, len(controlplaneDisks))
+	assert.Equal(t, 3, len(workerDisks))
+	assert.Equal(t, workerDisks, controlplaneDisks)
 }
 
 func TestQemuMaker_DiskEncryption_StatePartition(t *testing.T) {

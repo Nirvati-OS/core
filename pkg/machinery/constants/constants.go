@@ -11,9 +11,16 @@ import (
 	"github.com/siderolabs/crypto/x509"
 )
 
+// SupportedArchitectures is the list of architectures supported by Talos.
+// It is used in kubernetes pod scheduling constraints.
+var SupportedArchitectures = []string{
+	"amd64",
+	"arm64",
+}
+
 const (
 	// DefaultKernelVersion is the default Linux kernel version.
-	DefaultKernelVersion = "6.18.39-talos"
+	DefaultKernelVersion = "6.18.41-talos"
 
 	// KernelParamConfig is the kernel parameter name for specifying the URL.
 	// to the config.
@@ -429,7 +436,7 @@ const (
 
 	// DefaultEtcdVersion is the default target version of etcd.
 	// renovate: datasource=docker depName=registry.k8s.io/etcd
-	DefaultEtcdVersion = "v3.7.0"
+	DefaultEtcdVersion = "3.7.1"
 
 	// EtcdRootTalosKey is the root etcd key for Talos-specific storage.
 	EtcdRootTalosKey = "talos:v1"
@@ -857,6 +864,9 @@ const (
 
 	// CgroupExtensions is the cgroup name for system extension processes.
 	CgroupExtensions = CgroupSystem + "/extensions"
+
+	// CgroupInstaller is the cgroup name for the installer container (install/upgrade).
+	CgroupInstaller = CgroupSystem + "/installer"
 
 	// CgroupDashboard is the cgroup name for dashboard process.
 	CgroupDashboard = CgroupSystem + "/dashboard"
@@ -1302,6 +1312,9 @@ const (
 	// MetaValuesEnvVar is the name of the environment variable to store encoded meta values for the disk image (installer).
 	MetaValuesEnvVar = "INSTALLER_META_BASE64"
 
+	// InstallerGrubUseUKICmdlineEnvVar controls whether GRUB uses the kernel command line embedded in the UKI.
+	InstallerGrubUseUKICmdlineEnvVar = "INSTALLER_GRUB_USE_UKI_CMDLINE"
+
 	// MaintenanceServiceCommonName is the CN of the maintenance service server certificate.
 	MaintenanceServiceCommonName = "maintenance-service.talos.dev"
 
@@ -1424,8 +1437,7 @@ const (
 
 	// DefaultOOMTriggerExpression is the default CEL expression used to determine whether to trigger OOM.
 	DefaultOOMTriggerExpression = `(multiply_qos_vectors(d_qos_memory_full_total, {System: 8.0, Podruntime: 4.0}) > 3000.0 &&
-	     multiply_qos_vectors(qos_memory_full_avg10, {System: 1.0, Podruntime: 1.0}) > 5.0 && time_since_trigger > duration("5s")) ||
-		(memory_full_avg10 > 75.0 && time_since_trigger > duration("10s"))`
+	     multiply_qos_vectors(qos_memory_full_avg10, {System: 1.0, Podruntime: 1.0}) > 5.0 && time_since_trigger > duration("5s"))`
 
 	// DefaultOOMCgroupRankingExpression is the default CEL expression used to rank cgroups for OOM killer.
 	DefaultOOMCgroupRankingExpression = `memory_max.hasValue() ? 0.0 :
@@ -1465,6 +1477,15 @@ const (
 	//
 	// Vendored here to avoid pulling in k8s.io.
 	TaintEffectNoSchedule = "NoSchedule"
+
+	// Redacted is the replacement for sensitive values.
+	Redacted = "REDACTED"
+
+	// DefaultFilesystemScrubInterval is the default interval for unspecified, but enabled FS scrub configs.
+	DefaultFilesystemScrubInterval = 7 * 24 * time.Hour
+
+	// FilesystemScrubPriority is the priority value for running FS scrubbing processes.
+	FilesystemScrubPriority = 19
 )
 
 // names of variable that can be substituted in the talos.config kernel parameter.
@@ -1495,6 +1516,13 @@ var Overlays = []SELinuxLabeledPath{
 var DefaultDroppedCapabilities = map[string]struct{}{
 	"cap_sys_boot":   {},
 	"cap_sys_module": {},
+}
+
+// XFSScrubCapabilities is the set of capabilities xfs_scrub runs with.
+var XFSScrubCapabilities = []string{
+	// No separate capability, only available within cap_sys_admin:
+	// https://github.com/torvalds/linux/blob/7d0a66e4bb9081d75c82ec4957c50034cb0ea449/fs/xfs/scrub/scrub.c#L808-L809
+	"cap_sys_admin",
 }
 
 // UdevdDroppedCapabilities is the set of capabilities to drop for udevd.

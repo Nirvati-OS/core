@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/siderolabs/gen/channel"
-	"github.com/siderolabs/gen/xslices"
 	"github.com/siderolabs/go-retry/retry"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -222,13 +221,12 @@ func (k8sSuite *K8sSuite) EnsureResourceIsDeleted(
 func (k8sSuite *K8sSuite) WaitForEventExists(ctx context.Context, ns string, checkFn func(event eventsv1.Event) bool) error {
 	return retry.Constant(15*time.Second).RetryWithContext(ctx, func(ctx context.Context) error {
 		events, err := k8sSuite.Clientset.EventsV1().Events(ns).List(ctx, metav1.ListOptions{})
-
-		filteredEvents := xslices.Filter(events.Items, func(item eventsv1.Event) bool {
-			return checkFn(item)
-		})
-
-		if len(filteredEvents) == 0 {
+		if err != nil {
 			return retry.ExpectedError(err)
+		}
+
+		if !slices.ContainsFunc(events.Items, checkFn) {
+			return retry.ExpectedErrorf("no matching event found in namespace %q", ns)
 		}
 
 		return nil
@@ -512,7 +510,15 @@ func (k8sSuite *K8sSuite) WaitForPodToBeRunning(ctx context.Context, timeout tim
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case event := <-watcher.ResultChan():
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+
+				return fmt.Errorf("watcher closed waiting for pod %s/%s", namespace, podName)
+			}
+
 			if event.Type == watch.Error {
 				return fmt.Errorf("error watching pod: %v", event.Object)
 			}
@@ -530,7 +536,15 @@ func (k8sSuite *K8sSuite) WaitForPodToBeRunning(ctx context.Context, timeout tim
 			if pod.Name == podName && pod.Status.Phase == corev1.PodRunning {
 				return nil
 			}
-		case event := <-eventsWatcher.ResultChan():
+		case event, ok := <-eventsWatcher.ResultChan():
+			if !ok {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+
+				return fmt.Errorf("watcher closed waiting for events in namespace %s", namespace)
+			}
+
 			if event.Type == watch.Error {
 				return fmt.Errorf("error watching event: %v", event.Object)
 			}
@@ -563,6 +577,8 @@ func (k8sSuite *K8sSuite) WaitForPodToBeRunning(ctx context.Context, timeout tim
 }
 
 // WaitForDeploymentAvailable waits for the deployment with the given namespace and name to be running with the requested replicas.
+//
+//nolint:gocyclo
 func (k8sSuite *K8sSuite) WaitForDeploymentAvailable(ctx context.Context, timeout time.Duration, namespace, deplName string, replicas int32) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -580,7 +596,15 @@ func (k8sSuite *K8sSuite) WaitForDeploymentAvailable(ctx context.Context, timeou
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case event := <-watcher.ResultChan():
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+
+				return fmt.Errorf("watcher closed waiting for deployment %s/%s", namespace, deplName)
+			}
+
 			if event.Type == watch.Error {
 				return fmt.Errorf("error watching deployment: %v", event.Object)
 			}
@@ -706,6 +730,18 @@ func (k8sSuite *K8sSuite) HelmInstall(ctx context.Context, namespace, repository
 	}
 
 	cmd := exec.CommandContext(k8sSuite.T().Context(), k8sSuite.HelmPath, args...)
+
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	k8sSuite.T().Logf("running helm command: %s", strings.Join(cmd.Args, " "))
+
+	return cmd.Run()
+}
+
+// HelmUninstall uninstalls the named Helm release from a namespace.
+func (k8sSuite *K8sSuite) HelmUninstall(ctx context.Context, namespace, releaseName string) error {
+	cmd := exec.CommandContext(ctx, k8sSuite.HelmPath, "uninstall", "--namespace", namespace, releaseName)
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

@@ -18,15 +18,25 @@ preface = """
     [notes.updates]
         title = "Component Updates"
         description = """\
-Linux: 6.18.39
+Linux: 6.18.41
 Kubernetes: 1.37.0-beta.0
 containerd: 2.3.3
-etcd: v3.7.0
+etcd: 3.7.1
 Flannel: 0.28.8
 runc: 1.5.1
 CoreDNS: 1.14.6
 
 Talos is built with Go 1.26.5.
+"""
+
+    [notes.xfsscrub]
+        title = "XFS scrub"
+        description = """\
+Talos now supports automatically running background online filesystem maintenance tasks. Currently,
+only XFS using xfs_scrub tool is supported.
+
+This behavior can be enabled globally using a FilesystemScrubConfig document, or on per-volume
+basis using a field in corresponding VolumeConfig documents.
 """
 
     [notes.xfsallocationgroups]
@@ -363,10 +373,10 @@ List of changes:
 - Numbered and unnumbered (IPv6 link-local, RFC 8950 extended next-hop) peering are supported, including IPv4 prefixes learned over an IPv6 link-local next-hop.
 - Neighbor-local ASN overrides and passive sessions are supported. ECMP (multipath) and BFD (fast failure detection) are supported for fabric peering.
 - BFD is currently supported only by the instance in the default routing domain; GoBGP's embedded BFD listener is not VRF-aware.
-- Each instance owns an isolated BGP RIB and installs learned routes into its default or VRF routing table through the existing route controllers.
+- Each instance owns an isolated BGP RIB and, by default, installs learned routes into its default or VRF routing table through the existing route controllers. Set `installRoutes: false` to retain learned routes in the BGP RIB without installing them into the Linux routing table.
+- Instances can selectively import best neighbor-learned routes from other named instances with `importRoutes` prefix selectors. Imports are one-way, preserve path attributes, and do not recursively import locally originated or previously imported paths.
 - Peer state is observable via instance-qualified `BGPPeerStatus` resources (`talosctl get bgppeerstatus`).
 - `RouteSpec`/`RouteStatus` now carry a multipath next-hop list to support ECMP and cross-family (RFC 8950) next-hops.
-- Inter-instance route import/leaking is not yet supported, so a VRF-scoped workload-speaker instance cannot yet export its routes through a separate fabric instance.
 """
 
     [notes.vethconfig]

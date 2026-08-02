@@ -368,6 +368,8 @@ description: Talos gRPC API reference.
     - [DiskSpec](#talos.resource.definitions.block.DiskSpec)
     - [EncryptionKey](#talos.resource.definitions.block.EncryptionKey)
     - [EncryptionSpec](#talos.resource.definitions.block.EncryptionSpec)
+    - [FSScrubScheduleSpec](#talos.resource.definitions.block.FSScrubScheduleSpec)
+    - [FSScrubStatusSpec](#talos.resource.definitions.block.FSScrubStatusSpec)
     - [FilesystemSpec](#talos.resource.definitions.block.FilesystemSpec)
     - [LocatorSpec](#talos.resource.definitions.block.LocatorSpec)
     - [MountRequestSpec](#talos.resource.definitions.block.MountRequestSpec)
@@ -551,6 +553,7 @@ description: Talos gRPC API reference.
     - [AddressSpecSpec](#talos.resource.definitions.network.AddressSpecSpec)
     - [AddressStatusSpec](#talos.resource.definitions.network.AddressStatusSpec)
     - [BGPBFDConfigSpec](#talos.resource.definitions.network.BGPBFDConfigSpec)
+    - [BGPImportRouteSpec](#talos.resource.definitions.network.BGPImportRouteSpec)
     - [BGPInstanceConfigSpec](#talos.resource.definitions.network.BGPInstanceConfigSpec)
     - [BGPNeighborConfigSpec](#talos.resource.definitions.network.BGPNeighborConfigSpec)
     - [BGPPeerStatusSpec](#talos.resource.definitions.network.BGPPeerStatusSpec)
@@ -6567,6 +6570,42 @@ EncryptionSpec is the spec for volume encryption.
 
 
 
+<a name="talos.resource.definitions.block.FSScrubScheduleSpec"></a>
+
+### FSScrubScheduleSpec
+FSScrubScheduleSpec is the spec for FSScrubSchedule resource.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| filesystem | [talos.resource.definitions.enums.BlockFilesystemType](#talos.resource.definitions.enums.BlockFilesystemType) |  | Filesystem is the filesystem type of the volume to be scrubbed. |
+| interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | Interval is the scrub interval for the volume. |
+| next_scrub | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  | NextScrub is the next scheduled scrub time for the volume. |
+
+
+
+
+
+
+<a name="talos.resource.definitions.block.FSScrubStatusSpec"></a>
+
+### FSScrubStatusSpec
+FSScrubStatusSpec describes status of filesystem scrub jobs.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| mountpoint | [string](#string) |  |  |
+| interval | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
+| time | [google.protobuf.Timestamp](#google.protobuf.Timestamp) |  |  |
+| duration | [google.protobuf.Duration](#google.protobuf.Duration) |  |  |
+| status | [string](#string) |  |  |
+
+
+
+
+
+
 <a name="talos.resource.definitions.block.FilesystemSpec"></a>
 
 ### FilesystemSpec
@@ -6843,6 +6882,8 @@ VolumeConfigSpec is the spec for VolumeConfig resource.
 | symlink | [SymlinkProvisioningSpec](#talos.resource.definitions.block.SymlinkProvisioningSpec) |  | Symlink options for the volume. |
 | trim_enabled | [bool](#bool) |  | TrimEnabled indicates whether the volume should be trimmed (fstrim) on a schedule. |
 | trim_interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | TrimInterval is the resolved interval at which the volume should be trimmed. |
+| scrub_enabled | [bool](#bool) |  | ScrubEnabled indicates whether the volume filesystem should be scrubbed on a schedule. |
+| scrub_interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | ScrubInterval is the resolved period at which the volume filesystem should be scrubbed. |
 
 
 
@@ -6923,6 +6964,8 @@ VolumeStatusSpec is the spec for VolumeStatus resource.
 | encryption_allow_discards | [bool](#bool) |  | EncryptionAllowDiscards indicates whether the encrypted volume passes discards to the underlying device. |
 | trim_enabled | [bool](#bool) |  | TrimEnabled indicates whether the volume should be trimmed (fstrim) on a schedule. |
 | trim_interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | TrimInterval is the resolved interval at which the volume should be trimmed. |
+| scrub_enabled | [bool](#bool) |  | ScrubEnabled indicates whether the volume filesystem should be scrubbed on a schedule. |
+| scrub_interval | [google.protobuf.Duration](#google.protobuf.Duration) |  | ScrubInterval is the resolved period at which the volume filesystem should be scrubbed. |
 
 
 
@@ -9593,6 +9636,22 @@ BGPBFDConfigSpec contains BFD parameters for a BGP neighbor.
 
 
 
+<a name="talos.resource.definitions.network.BGPImportRouteSpec"></a>
+
+### BGPImportRouteSpec
+BGPImportRouteSpec selects routes learned by another BGP instance for one-way import.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| bgp_instance | [string](#string) |  |  |
+| prefixes | [common.NetIPPrefix](#common.NetIPPrefix) | repeated |  |
+
+
+
+
+
+
 <a name="talos.resource.definitions.network.BGPInstanceConfigSpec"></a>
 
 ### BGPInstanceConfigSpec
@@ -9610,6 +9669,8 @@ BGPInstanceConfigSpec contains the resolved runtime configuration for a BGP rout
 | neighbors | [BGPNeighborConfigSpec](#talos.resource.definitions.network.BGPNeighborConfigSpec) | repeated |  |
 | vrf | [string](#string) |  |  |
 | vrf_table | [talos.resource.definitions.enums.NethelpersRoutingTable](#talos.resource.definitions.enums.NethelpersRoutingTable) |  |  |
+| import_routes | [BGPImportRouteSpec](#talos.resource.definitions.network.BGPImportRouteSpec) | repeated |  |
+| install_routes | [bool](#bool) |  |  |
 
 
 
@@ -10569,6 +10630,7 @@ ResolverSpecSpec describes DNS resolvers.
 | config_layer | [talos.resource.definitions.enums.NetworkConfigLayer](#talos.resource.definitions.enums.NetworkConfigLayer) |  |  |
 | search_domains | [string](#string) | repeated |  |
 | name_servers | [NameServerSpec](#talos.resource.definitions.network.NameServerSpec) | repeated | NameServers is a list of DNS servers with additional configuration. |
+| search_domains_overridden | [bool](#bool) |  | SearchDomainsOverridden indicates that SearchDomains was explicitly set on the machine configuration layer and must override (rather than merge with) search domains from previous layers. This is a separate field because protobuf cannot distinguish an empty slice from an unset one, and an empty override is used to clear DHCP/platform search domains. |
 
 
 
@@ -11813,6 +11875,8 @@ StatusSpec describes time sync state.
 | synced | [bool](#bool) |  | Synced indicates whether time is in sync. |
 | epoch | [int64](#int64) |  | Epoch is incremented every time clock jumps more than 15min. |
 | sync_disabled | [bool](#bool) |  | SyncDisabled indicates if time sync is disabled. |
+| spike_detected | [bool](#bool) |  | SpikeDetected indicates that the last time measurement was discarded by the spike filter.<br><br>A discarded measurement is not applied to the clock at all, so a filter which keeps rejecting looks exactly like a clock which is never corrected. |
+| consecutive_spikes | [int64](#int64) |  | ConsecutiveSpikes is the number of time measurements discarded in a row by the spike filter. |
 
 
 

@@ -46,13 +46,3 @@ func NewAnalyzer(cfg Config) *analysis.Analyzer {
 		},
 	}
 }
-
-// NewAnalyzerFromConfigPath loads configPath and builds an analyzer from it.
-func NewAnalyzerFromConfigPath(configPath string) (*analysis.Analyzer, error) {
-	cfg, err := LoadConfig(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return NewAnalyzer(cfg), nil
-}

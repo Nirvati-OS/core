@@ -19,6 +19,7 @@ linters:
   default: all
   enable:
     - loglinter
+    - kubeimportlinter
   disable:
     - contextcheck
     - depguard
@@ -146,6 +147,14 @@ linters:
             zap_root_component:
               allow:
                 - "pkg/logging/zap.go"
+      kubeimportlinter:
+        type: module
+        description: checks that versioned Kubernetes imports are aliased
+        original-url: github.com/siderolabs/talos/tools/kubeimportlinter
+        settings:
+          exclude:
+            - "**/*_test.go"
+            - "vendor/**"
     cyclop:
       max-complexity: 20
     dogsled:
@@ -215,7 +224,6 @@ linters:
       replace-allow-list:
         - gopkg.in/yaml.v3
         - github.com/coredns/coredns
-        - github.com/osrg/gobgp/v4
         - github.com/mdlayher/kobject
         - golang.zx2c4.com/wireguard/wgctrl
         - github.com/mdlayher/ethtool

@@ -9,15 +9,12 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
-	"golang.org/x/tools/go/packages"
 )
 
 // Issue describes a single finding reported by log-linter.
@@ -44,146 +41,6 @@ type ignoreComment struct {
 	StartLine int
 	EndLine   int
 	Rules     map[string]struct{}
-}
-
-// Run executes log-linter using configPath and optional target filters.
-//
-//nolint:gocyclo
-func Run(configPath string, rawTargets []string) ([]Issue, error) {
-	cfg, err := LoadConfig(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	targets, err := normalizeTargets(cfg.Root, rawTargets)
-	if err != nil {
-		return nil, err
-	}
-
-	moduleRoots, err := discoverModuleRoots(cfg.Root)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(moduleRoots) == 0 {
-		return nil, fmt.Errorf("no go.mod files found under %s", cfg.Root)
-	}
-
-	issues := make([]Issue, 0)
-	seen := map[string]struct{}{}
-
-	for _, moduleRoot := range moduleRoots {
-		loadModuleRoot, err := shouldLoadModule(cfg, moduleRoot, targets)
-		if err != nil {
-			return nil, err
-		}
-
-		if !loadModuleRoot {
-			continue
-		}
-
-		pkgs, err := loadModule(moduleRoot)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, pkg := range pkgs {
-			fileIssues, err := lintPackage(cfg, pkg, targets)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, issue := range fileIssues {
-				key := issueKey(issue)
-				if _, ok := seen[key]; ok {
-					continue
-				}
-
-				seen[key] = struct{}{}
-
-				issues = append(issues, issue)
-			}
-		}
-	}
-
-	sortIssues(issues)
-
-	return issues, nil
-}
-
-//nolint:gocyclo
-func shouldLoadModule(cfg Config, moduleRoot string, targets []string) (bool, error) {
-	relPath, err := repoRelativePath(cfg.Root, moduleRoot)
-	if err != nil {
-		return false, err
-	}
-
-	if strings.HasPrefix(relPath, "../") || relPath == ".." {
-		return false, nil
-	}
-
-	if matchAnyPattern(relPath, cfg.Exclude) {
-		return false, nil
-	}
-
-	if len(targets) == 0 {
-		return true, nil
-	}
-
-	if relPath == "." {
-		return true, nil
-	}
-
-	for _, target := range targets {
-		if target == "." || target == relPath || strings.HasPrefix(target, relPath+"/") {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func lintPackage(cfg Config, pkg *packages.Package, targets []string) ([]Issue, error) {
-	if pkg == nil {
-		return nil, nil
-	}
-
-	issues := make([]Issue, 0)
-
-	for i, file := range pkg.Syntax {
-		if i >= len(pkg.CompiledGoFiles) {
-			continue
-		}
-
-		filename := pkg.CompiledGoFiles[i]
-
-		relPath, err := repoRelativePath(cfg.Root, filename)
-		if err != nil {
-			return nil, err
-		}
-
-		if strings.HasPrefix(relPath, "../") || relPath == ".." {
-			continue
-		}
-
-		if !matchesTargets(relPath, targets) {
-			continue
-		}
-
-		ctx := fileContext{
-			config:    cfg,
-			file:      file,
-			fset:      pkg.Fset,
-			typesInfo: pkg.TypesInfo,
-			relPath:   relPath,
-			parents:   buildParentMap(file),
-			ignores:   collectIgnoreComments(file, pkg.Fset),
-		}
-
-		issues = append(issues, lintFile(ctx)...)
-	}
-
-	return issues, nil
 }
 
 func lintSyntaxFiles(cfg Config, fset *token.FileSet, typesInfo *types.Info, files []*ast.File) ([]Issue, error) {
@@ -257,113 +114,6 @@ func lintFile(ctx fileContext) []Issue {
 	return issues
 }
 
-func discoverModuleRoots(root string) ([]string, error) {
-	var roots []string
-
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "vendor":
-				return filepath.SkipDir
-			}
-
-			return nil
-		}
-
-		if d.Name() == "go.mod" {
-			roots = append(roots, filepath.Dir(path))
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("walking %s: %w", root, err)
-	}
-
-	slices.Sort(roots)
-
-	return roots, nil
-}
-
-func loadModule(moduleRoot string) ([]*packages.Package, error) {
-	cfg := &packages.Config{
-		Mode: packages.NeedName |
-			packages.NeedFiles |
-			packages.NeedCompiledGoFiles |
-			packages.NeedSyntax |
-			packages.NeedImports |
-			packages.NeedDeps |
-			packages.NeedTypes |
-			packages.NeedTypesInfo |
-			packages.NeedModule,
-		Dir:   moduleRoot,
-		Tests: false,
-	}
-
-	cfg.Env = append(os.Environ(), "GOWORK=off")
-
-	pkgs, err := packages.Load(cfg, "./...")
-	if err != nil {
-		return nil, fmt.Errorf("loading packages in %s: %w", moduleRoot, err)
-	}
-
-	var loadErrs []string
-
-	for _, pkg := range pkgs {
-		for _, pkgErr := range pkg.Errors {
-			loadErrs = append(loadErrs, pkgErr.Error())
-		}
-	}
-
-	if len(loadErrs) > 0 {
-		slices.Sort(loadErrs)
-
-		return nil, fmt.Errorf("package load errors in %s:\n%s", moduleRoot, strings.Join(loadErrs, "\n"))
-	}
-
-	return pkgs, nil
-}
-
-func normalizeTargets(root string, rawTargets []string) ([]string, error) {
-	if len(rawTargets) == 0 {
-		return nil, nil
-	}
-
-	targets := make([]string, 0, len(rawTargets))
-	for _, target := range rawTargets {
-		if target == "" {
-			continue
-		}
-
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(root, target)
-		}
-
-		abs, err := filepath.Abs(target)
-		if err != nil {
-			return nil, fmt.Errorf("resolving target %q: %w", target, err)
-		}
-
-		rel, err := filepath.Rel(root, abs)
-		if err != nil {
-			return nil, fmt.Errorf("resolving target %q relative to %s: %w", target, root, err)
-		}
-
-		rel = filepath.ToSlash(filepath.Clean(rel))
-		if strings.HasPrefix(rel, "../") || rel == ".." {
-			return nil, fmt.Errorf("target %q is outside root %s", target, root)
-		}
-
-		targets = append(targets, rel)
-	}
-
-	return targets, nil
-}
-
 func repoRelativePath(root, path string) (string, error) {
 	rel, err := filepath.Rel(root, path)
 	if err != nil {
@@ -371,28 +121,6 @@ func repoRelativePath(root, path string) (string, error) {
 	}
 
 	return filepath.ToSlash(filepath.Clean(rel)), nil
-}
-
-func matchesTargets(relPath string, targets []string) bool {
-	if len(targets) == 0 {
-		return true
-	}
-
-	for _, target := range targets {
-		if target == "." {
-			return true
-		}
-
-		if relPath == target {
-			return true
-		}
-
-		if strings.HasPrefix(relPath, target+"/") {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (ctx fileContext) position(pos token.Pos) token.Position {

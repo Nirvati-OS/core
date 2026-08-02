@@ -12,9 +12,6 @@ replace (
 	// see https://github.com/mdlayher/kobject/pull/5
 	github.com/mdlayher/kobject => github.com/smira/kobject v0.0.0-20240304111826-49c8d4613389
 
-	// prevent watcher shutdown leaks until https://github.com/osrg/gobgp/pull/3505 is merged
-	github.com/osrg/gobgp/v4 => github.com/frezbo/gobgp/v4 v4.0.0-20260723125704-323c85fa213c
-
 	// replace to disable assembly implementation (see https://github.com/beevik/nts/issues/1#issuecomment-4879122150)
 	github.com/secure-io/siv-go => github.com/smira/siv-go v0.0.0-20260706144621-2093d2730928
 
@@ -126,7 +123,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/opencontainers/runtime-spec v1.3.0
-	github.com/osrg/gobgp/v4 v4.7.0
+	github.com/osrg/gobgp/v4 v4.7.1-0.20260728014820-31e136b73c64
 	github.com/packethost/packngo v0.31.0
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/pin/tftp/v3 v3.2.0
@@ -165,7 +162,7 @@ require (
 	github.com/siderolabs/net v0.4.0
 	github.com/siderolabs/proto-codec v0.1.4
 	github.com/siderolabs/siderolink v0.3.16
-	github.com/siderolabs/talos/pkg/machinery v1.14.0-beta.0
+	github.com/siderolabs/talos/pkg/machinery v1.14.0-beta.1
 	github.com/sigstore/cosign/v3 v3.1.2
 	github.com/sigstore/sigstore v1.10.8
 	github.com/sigstore/sigstore-go v1.2.2
@@ -178,10 +175,10 @@ require (
 	github.com/u-root/u-root v0.16.0
 	github.com/ulikunitz/xz v0.5.16
 	github.com/vultr/metadata v1.1.0
-	go.etcd.io/etcd/api/v3 v3.7.0
-	go.etcd.io/etcd/client/pkg/v3 v3.7.0
-	go.etcd.io/etcd/client/v3 v3.7.0
-	go.etcd.io/etcd/etcdutl/v3 v3.7.0
+	go.etcd.io/etcd/api/v3 v3.7.1
+	go.etcd.io/etcd/client/pkg/v3 v3.7.1
+	go.etcd.io/etcd/client/v3 v3.7.1
+	go.etcd.io/etcd/etcdutl/v3 v3.7.1
 	go.uber.org/goleak v1.3.0
 	go.uber.org/zap v1.28.0
 	go.uber.org/zap/exp v0.3.0
@@ -406,8 +403,8 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zalando/go-keyring v0.2.8 // indirect
 	go.etcd.io/bbolt v1.5.0 // indirect
-	go.etcd.io/etcd/pkg/v3 v3.7.0 // indirect
-	go.etcd.io/etcd/server/v3 v3.7.0 // indirect
+	go.etcd.io/etcd/pkg/v3 v3.7.1 // indirect
+	go.etcd.io/etcd/server/v3 v3.7.1 // indirect
 	go.etcd.io/raft/v3 v3.7.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
