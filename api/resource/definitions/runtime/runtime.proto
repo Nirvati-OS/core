@@ -210,7 +210,6 @@ message SecurityStateSpec {
   talos.resource.definitions.enums.RuntimeSELinuxState se_linux_state = 4;
   bool booted_with_uki = 5;
   talos.resource.definitions.enums.RuntimeFIPSState fips_state = 6;
-  bool module_signature_enforced = 7;
 }
 
 // ServicePIDSpec is the spec for the service PID.

@@ -21,7 +21,6 @@ import (
 	"github.com/cosi-project/runtime/pkg/safe"
 	"github.com/cosi-project/runtime/pkg/state"
 	"github.com/foxboron/go-uefi/efi"
-	"github.com/siderolabs/go-procfs/procfs"
 	"go.uber.org/zap"
 
 	machineruntime "github.com/siderolabs/talos/internal/app/machined/pkg/runtime"
@@ -66,7 +65,7 @@ func (ctrl *SecurityStateController) Outputs() []controller.Output {
 
 // Run implements controller.Controller interface.
 //
-//nolint:gocyclo,cyclop
+//nolint:gocyclo
 func (ctrl *SecurityStateController) Run(ctx context.Context, r controller.Runtime, _ *zap.Logger) error {
 	for {
 		select {
@@ -88,7 +87,6 @@ func (ctrl *SecurityStateController) Run(ctx context.Context, r controller.Runti
 		var (
 			secureBootState          bool
 			bootedWithUKI            bool
-			moduleSignatureEnforced  bool
 			pcrSigningKeyFingerprint string
 		)
 
@@ -135,11 +133,6 @@ func (ctrl *SecurityStateController) Run(ctx context.Context, r controller.Runti
 			return fmt.Errorf("failed to get SELinux state: %w", err)
 		}
 
-		moduleSignatureEnforcedInfo := procfs.ProcCmdline().Get(constants.KernelParamEnforceModuleSigVerify).First()
-		if moduleSignatureEnforcedInfo != nil && *moduleSignatureEnforcedInfo == "1" {
-			moduleSignatureEnforced = true
-		}
-
 		fipsState := runtimeres.FIPSStateDisabled
 
 		if fipsmode.Enabled() {
@@ -156,7 +149,6 @@ func (ctrl *SecurityStateController) Run(ctx context.Context, r controller.Runti
 			state.TypedSpec().SELinuxState = selinuxState
 			state.TypedSpec().FIPSState = fipsState
 			state.TypedSpec().BootedWithUKI = bootedWithUKI
-			state.TypedSpec().ModuleSignatureEnforced = moduleSignatureEnforced
 
 			return nil
 		}); err != nil {

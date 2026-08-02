@@ -1631,7 +1631,6 @@ type SecurityStateSpec struct {
 	SeLinuxState             enums.RuntimeSELinuxState `protobuf:"varint,4,opt,name=se_linux_state,json=seLinuxState,proto3,enum=talos.resource.definitions.enums.RuntimeSELinuxState" json:"se_linux_state,omitempty"`
 	BootedWithUki            bool                      `protobuf:"varint,5,opt,name=booted_with_uki,json=bootedWithUki,proto3" json:"booted_with_uki,omitempty"`
 	FipsState                enums.RuntimeFIPSState    `protobuf:"varint,6,opt,name=fips_state,json=fipsState,proto3,enum=talos.resource.definitions.enums.RuntimeFIPSState" json:"fips_state,omitempty"`
-	ModuleSignatureEnforced  bool                      `protobuf:"varint,7,opt,name=module_signature_enforced,json=moduleSignatureEnforced,proto3" json:"module_signature_enforced,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -1706,13 +1705,6 @@ func (x *SecurityStateSpec) GetFipsState() enums.RuntimeFIPSState {
 		return x.FipsState
 	}
 	return enums.RuntimeFIPSState(0)
-}
-
-func (x *SecurityStateSpec) GetModuleSignatureEnforced() bool {
-	if x != nil {
-		return x.ModuleSignatureEnforced
-	}
-	return false
 }
 
 // ServicePIDSpec is the spec for the service PID.
@@ -2210,7 +2202,7 @@ const file_resource_definitions_runtime_runtime_proto_rawDesc = "" +
 	"\alicense\x18\x03 \x01(\tR\alicense\x12\x13\n" +
 	"\x05cp_es\x18\x04 \x03(\tR\x04cpEs\x12\x15\n" +
 	"\x06pur_ls\x18\x05 \x03(\tR\x05purLs\x12\x1c\n" +
-	"\textension\x18\x06 \x01(\bR\textension\"\xc6\x03\n" +
+	"\textension\x18\x06 \x01(\bR\textension\"\x8a\x03\n" +
 	"\x11SecurityStateSpec\x12\x1f\n" +
 	"\vsecure_boot\x18\x01 \x01(\bR\n" +
 	"secureBoot\x12=\n" +
@@ -2219,8 +2211,7 @@ const file_resource_definitions_runtime_runtime_proto_rawDesc = "" +
 	"\x0ese_linux_state\x18\x04 \x01(\x0e25.talos.resource.definitions.enums.RuntimeSELinuxStateR\fseLinuxState\x12&\n" +
 	"\x0fbooted_with_uki\x18\x05 \x01(\bR\rbootedWithUki\x12Q\n" +
 	"\n" +
-	"fips_state\x18\x06 \x01(\x0e22.talos.resource.definitions.enums.RuntimeFIPSStateR\tfipsState\x12:\n" +
-	"\x19module_signature_enforced\x18\a \x01(\bR\x17moduleSignatureEnforced\"K\n" +
+	"fips_state\x18\x06 \x01(\x0e22.talos.resource.definitions.enums.RuntimeFIPSStateR\tfipsState\"K\n" +
 	"\x0eServicePIDSpec\x12\x10\n" +
 	"\x03pid\x18\x01 \x01(\x05R\x03pid\x12'\n" +
 	"\x0fmount_namespace\x18\x02 \x01(\tR\x0emountNamespace\"\xa0\x01\n" +

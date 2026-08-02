@@ -88,7 +88,6 @@ func TestDefaultKernelArgs(t *testing.T) {
 				"consoleblank=0",
 				"printk.devkmsg=on",
 				"selinux=1",
-				"module.sig_enforce=1",
 				"proc_mem.force_override=never",
 			},
 		},
