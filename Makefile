@@ -12,7 +12,6 @@ IMAGE_REGISTRY ?= $(REGISTRY)
 IMAGE_TAG_IN ?= $(TAG)$(TAG_SUFFIX_IN)
 IMAGE_TAG_OUT ?= $(TAG)$(TAG_SUFFIX_OUT)
 IMAGE_NAME_SUFFIX ?=
-ARCHS ?= amd64 arm64
 BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 REGISTRY_AND_USERNAME := $(IMAGE_REGISTRY)/$(USERNAME)
 NAME = Talos
@@ -738,17 +737,6 @@ push: ## Pushes the installer-base, imager, talos and talosctl images to the con
 
 push-%: ## Pushes the installer-base, imager, talos and talosctl images to the configured container registry with the specified tag (e.g. push-latest).
 	@$(MAKE) push IMAGE_TAG_OUT=$*
-
-.PHONY: push-manifests
-push-manifests: ## Combines the per-arch images built by the native-arch CI matrix (name suffixed -amd64/-arm64) into final multi-arch manifests.
-	@for name in installer-base imager talos talosctl talosctl-all; do \
-		images=""; \
-		for arch in $(ARCHS); do images="$$images $(REGISTRY_AND_USERNAME)/$$name-$$arch:$(IMAGE_TAG_OUT)"; done; \
-		docker buildx imagetools create --tag $(REGISTRY_AND_USERNAME)/$$name:$(IMAGE_TAG_OUT) $$images; \
-	done
-
-push-manifests-%: ## Combines the per-arch images with the specified tag (e.g. push-manifests-latest).
-	@$(MAKE) push-manifests IMAGE_TAG_OUT=$*
 
 .PHONY: clean
 clean: ## Cleans up all artifacts.

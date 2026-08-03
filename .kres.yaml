@@ -163,7 +163,7 @@ spec:
     - name: push
       buildxOptions:
         enabled: true
-      archMatrix: true
+      runnerGroup: ubuntu-24.04
       conditions:
         - except-pull-request
         - not-on-tag
@@ -171,8 +171,7 @@ spec:
         - name: build
           command: talosctl-all kernel sd-boot sd-stub initramfs installer-base imager talos
           environment:
-            PLATFORM: linux/${{ matrix.arch }}
-            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
+            PLATFORM: linux/amd64,linux/arm64
         - name: release-notes
         - name: login-to-registry
           registryLoginStep:
@@ -181,43 +180,23 @@ spec:
             password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
         - name: push
           environment:
-            PLATFORM: linux/${{ matrix.arch }}
-            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
+            PLATFORM: linux/amd64,linux/arm64
         - name: push-latest
           environment:
-            PLATFORM: linux/${{ matrix.arch }}
-            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
-          conditions:
-            - only-on-main-branch
-    - name: merge-manifests-push
-      runnerGroup: generic # just merges already-pushed manifests, no build
-      depends:
-        - push
-      conditions:
-        - except-pull-request
-        - not-on-tag
-      steps:
-        - name: login-to-registry
-          registryLoginStep:
-            registry: registry.nirvati.de
-            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
-            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
-        - name: push-manifests
-        - name: push-manifests-latest
+            PLATFORM: linux/amd64,linux/arm64
           conditions:
             - only-on-main-branch
     - name: tag
       buildxOptions:
         enabled: true
-      archMatrix: true
+      runnerGroup: ubuntu-24.04
       conditions:
         - only-on-tag
       steps:
         - name: build
           command: talosctl-all kernel sd-boot sd-stub initramfs installer-base imager talos talosctl-cni-bundle
           environment:
-            PLATFORM: linux/${{ matrix.arch }}
-            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
+            PLATFORM: linux/amd64,linux/arm64
         - name: release-notes
         - name: sbom
         - name: login-to-registry
@@ -227,42 +206,10 @@ spec:
             password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
         - name: push
           environment:
-            PLATFORM: linux/${{ matrix.arch }}
-            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
+            PLATFORM: linux/amd64,linux/arm64
         - name: images
           environment:
-            PLATFORM: linux/${{ matrix.arch }}
-            IMAGE_NAME_SUFFIX: -${{ matrix.arch }}
-        - name: save-release-artifacts
-          artifactStep:
-            type: upload
-            artifactName: talos-release-${{ matrix.arch }}
-            artifactPath: _out
-    - name: merge-manifests-tag
-      runnerGroup: generic # just merges already-pushed manifests, no build
-      depends:
-        - tag
-      conditions:
-        - only-on-tag
-      steps:
-        - name: login-to-registry
-          registryLoginStep:
-            registry: registry.nirvati.de
-            username: ${{ secrets.NIRVATI_REGISTRY_USERNAME }}
-            password: ${{ secrets.NIRVATI_REGISTRY_PASSWORD }}
-        - name: push-manifests
-    - name: release
-      runnerGroup: generic # only collects artifacts uploaded by the tag matrix and creates the release
-      depends:
-        - tag
-      conditions:
-        - only-on-tag
-      steps:
-        - name: download-release-artifacts
-          artifactStep:
-            type: download
-            pattern: talos-release-*
-            artifactPath: _out
+            PLATFORM: linux/amd64,linux/arm64
         - name: release
           releaseStep:
             baseDirectory: _out
