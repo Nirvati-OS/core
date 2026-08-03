@@ -605,8 +605,8 @@ may be removed in a later release.
 
     [make_deps.tools]
         variable = "TOOLS"
-        repository = "github.com/siderolabs/tools"
+        repository = "github.com/Nirvati-OS/tools"
 
     [make_deps.pkgs]
         variable = "PKGS"
-        repository = "github.com/siderolabs/pkgs"
+        repository = "github.com/Nirvati-OS/pkgs"
