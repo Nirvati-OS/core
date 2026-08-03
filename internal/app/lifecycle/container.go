@@ -328,7 +328,6 @@ func buildInstallerArgs(disk, platform string, options *install.Options) []strin
 		constants.KernelParamAuditdDisabled,
 		constants.KernelParamDashboardDisabled,
 		constants.KernelParamNetIfnames,
-		constants.KernelParamEnforceModuleSigVerify,
 	} {
 		if c := procfs.ProcCmdline().Get(preservedArg).First(); c != nil {
 			args = append(args, "--extra-kernel-arg", fmt.Sprintf("%s=%s", preservedArg, *c))
